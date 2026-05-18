@@ -321,8 +321,8 @@ async function doLogin(){
     const accs=await getAccounts();const acc=accs.find(a=>a.username===u&&a.password===p);
     if(acc){
       const m=_M.find(x=>x.id===acc.member_id);
-      CU={role:'pic',name:m?m.name:u,memberId:acc.member_id,teamId:acc.team_id||null};
-      localStorage.setItem('crm_session',JSON.stringify({role:'pic',name:m?m.name:u,memberId:acc.member_id,teamId:acc.team_id||null,username:u}));
+      CU={role:'pic',name:m?m.name:u,memberId:acc.member_id||null,teamId:acc.team_id||null};
+      localStorage.setItem('crm_session',JSON.stringify({role:'pic',name:m?m.name:u,memberId:acc.member_id||null,teamId:acc.team_id||null,username:u}));
       const ki=m?_M.findIndex(x=>x.id===m.id)%AVBG.length:0;
       const team=_T.find(t=>t.id===acc.team_id)||_T.find(t=>t.id===m?.team_id);
       setAv(m?ini(m.name):u[0].toUpperCase(),m?m.name:u,team?team.name:'Sales',false,ki);
@@ -353,13 +353,22 @@ async function restoreSession(){
     buildSB('admin');showApp();nav('overview');return true;
   }
   if(session.role==='pic'){
-    const memberId=parseInt(session.memberId)||null;
-    const teamId=parseInt(session.teamId)||null;
-    if(!memberId)return false;
-    CU={role:'pic',name:session.name||'PIC',memberId,teamId};
-    const m=_M.find(x=>x.id===memberId);
+    const memberId=session.memberId?parseInt(session.memberId):null;
+    const teamId=session.teamId?parseInt(session.teamId):null;
+    const username=session.username||'';
+    // Verify account still exists
+    const accs=await getAccounts().catch(()=>[]);
+    const acc=accs.find(a=>a.username===username);
+    if(!acc)return false;
+    // Use latest data from account
+    const realMemberId=acc.member_id||memberId;
+    const realTeamId=acc.team_id||teamId;
+    CU={role:'pic',name:session.name||'PIC',memberId:realMemberId,teamId:realTeamId};
+    // Update session with latest data
+    localStorage.setItem('crm_session',JSON.stringify({...session,memberId:realMemberId,teamId:realTeamId}));
+    const m=_M.find(x=>x.id===realMemberId);
     const ki=m?_M.findIndex(x=>x.id===m.id)%AVBG.length:0;
-    const team=_T.find(t=>t.id===teamId)||_T.find(t=>t.id===m?.team_id);
+    const team=_T.find(t=>t.id===realTeamId)||_T.find(t=>t.id===m?.team_id);
     setAv(
       m?ini(m.name):(session.name?.[0]?.toUpperCase()||'P'),
       m?m.name:(session.name||'PIC'),
